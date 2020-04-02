@@ -9,8 +9,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import MapView, {Marker, AnimatedRegion} from 'react-native-maps';
-import * as firebase from 'firebase';
+
+//firebase
+import firebase from '@react-native-firebase/app';
+import '@react-native-firebase/functions';
+
 import DeviceInfo from 'react-native-device-info';
+import Geolocation from '@react-native-community/geolocation';
 
 const screen = Dimensions.get('window');
 
@@ -29,7 +34,9 @@ const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 ***REMOVED***
 ***REMOVED***
 
-firebase.initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 var functions = firebase.functions();
 
 export default class App extends Component {
@@ -43,12 +50,14 @@ export default class App extends Component {
 
   sendAndReceive() {
     this.setState({loading: true});
-    navigator.geolocation.getCurrentPosition(
+    Geolocation.getCurrentPosition(
       position => {
         const location = JSON.stringify(position);
 
         this.setState({ location: location });
         // console.log(location)
+
+        console.log("Device ID: " + DeviceInfo.getUniqueId)
 
         var locationInfo = {
           id: DeviceInfo.getUniqueId(),
@@ -57,16 +66,17 @@ export default class App extends Component {
           timestamp: position.timestamp
         }
 
-        var updateLocation = firebase.functions().httpsCallable('updateLocation');
+        var updateLocation = functions.httpsCallable('updateLocation');
 
         var that = this
 
         this.map.getMapBoundaries().then(function(value) {
           updateLocation({locationInfo: locationInfo, boundaries: value}).then(result => {
             // Read result of the Cloud Function.
+            console.log(result)
             that.setState({loading: false})
-            var numPeopleInArea = result.data.numPeopleInArea;
-            this.setState({numPeopleInRegion: numPeopleInArea})
+            var numPeopleInArea = result.data;
+            that.setState({numPeopleInRegion: numPeopleInArea})
           }, error => {
             console.log(error)
           });
@@ -95,7 +105,6 @@ export default class App extends Component {
             latitudeDelta: LATITUDE_DELTA,
             longitudeDelta: LONGITUDE_DELTA,
           }}
-          onRegionChange={this.sendAndReceive}
         >
           {this.state.markers != null ? this.state.markers.map(marker => (
             <Marker
@@ -106,12 +115,25 @@ export default class App extends Component {
             />
           )) : null}
         </MapView>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            onPress={() => this.sendAndReceive()}
+              style={[styles.bubble, styles.button]}>
+            <Text>Refresh</Text>
+          </TouchableOpacity>
+        </View>
         {this.state.loading ? 
           <View style={styles.activityIndicator}>
             <ActivityIndicator size="large" color="#000000" />
           </View>
           :
-          <Text>{this.state.numPeopleInRegion}</Text>
+          <View style={styles.buttonContainer}>
+            <View
+              style={[styles.bubble, styles.button]}
+            >
+            <Text>{this.state.numPeopleInRegion} people in this region.</Text>
+            </View>
+          </View>
         }
         {/* <View style={styles.buttonContainer}>
           <TouchableOpacity
