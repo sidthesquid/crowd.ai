@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import MapView, {Marker, AnimatedRegion} from 'react-native-maps';
 import * as firebase from 'firebase';
+import DeviceInfo from 'react-native-device-info';
 
 const screen = Dimensions.get('window');
 
@@ -29,18 +30,16 @@ const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 ***REMOVED***
 
 firebase.initializeApp(firebaseConfig);
+var functions = firebase.functions();
 
 export default class App extends Component {
 
   state = {
+    numPeopleInRegion: 0,
     location: null,
     markers: [],
     loading: false,
   }
-
-  // sendReceiveMarkers() {
-    
-  // }
 
   sendAndReceive() {
     this.setState({loading: true});
@@ -49,63 +48,39 @@ export default class App extends Component {
         const location = JSON.stringify(position);
 
         this.setState({ location: location });
+        // console.log(location)
 
-        if (location != null) {
-          firebase.database().ref('locations').push().set({
-            location: this.state.location,
-          });
+        var locationInfo = {
+          id: DeviceInfo.getUniqueId(),
+          lat: position.coords.latitude,
+          long: position.coords.longitude,
+          timestamp: position.timestamp
         }
-        // if (location != null) {
-        //   const dbh = firebase.firestore();
 
-        //   dbh.collection("locations").doc(1).set({
-        //     lastLocation: location,
-        //   })
-        // }
+        var updateLocation = firebase.functions().httpsCallable('updateLocation');
+
+        var that = this
+
+        this.map.getMapBoundaries().then(function(value) {
+          updateLocation({locationInfo: locationInfo, boundaries: value}).then(result => {
+            // Read result of the Cloud Function.
+            that.setState({loading: false})
+            var numPeopleInArea = result.data.numPeopleInArea;
+            this.setState({numPeopleInRegion: numPeopleInArea})
+          }, error => {
+            console.log(error)
+          });
+        }, error => {
+          console.log(error)
+        });
       },
       error => Alert.alert(error.message),
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
     );
-    this.state.markers = [];
-    var ref = firebase.database().ref("locations");
-    // console.log("hi");
-    var that = this;
-    ref.on("value", function(snapshot) {
-      var people = snapshot.val();
-
-      Object.keys(people).forEach((element) => {
-        person = JSON.parse(people[element].location);
-        that.state.markers.push( 
-          {
-            key: Math.floor(Math.random() * Math.floor(10000000)).toString(10),
-            latlng: {
-              latitude: person.coords.latitude,
-              longitude: person.coords.longitude,
-            },
-            title: Math.floor(Math.random() * Math.floor(10000000)).toString(10),
-            description: "In this area for 1 hour",
-          },
-        )
-      });
-      
-      that.state.loading = false;
-    });
-    // this.state.markers = [
-    //   {
-    //     key: 1,
-    //     latlng: {
-    //       latitude: 37.869054554003895,
-    //       longitude: -122.2601645033542,
-    //     },
-    //     title: "1",
-    //     description: "In this area for 1 hour",
-    //   },
-    // ]
   ***REMOVED***
 
   componentDidMount() {
-    // findCoordinates();
-    // sendReceiveMarkers();
+    this.sendAndReceive()
   }
 
   render() {
@@ -120,6 +95,7 @@ export default class App extends Component {
             latitudeDelta: LATITUDE_DELTA,
             longitudeDelta: LONGITUDE_DELTA,
           }}
+          onRegionChange={this.sendAndReceive}
         >
           {this.state.markers != null ? this.state.markers.map(marker => (
             <Marker
@@ -135,16 +111,16 @@ export default class App extends Component {
             <ActivityIndicator size="large" color="#000000" />
           </View>
           :
-          null
+          <Text>{this.state.numPeopleInRegion}</Text>
         }
-        <View style={styles.buttonContainer}>
+        {/* <View style={styles.buttonContainer}>
           <TouchableOpacity
             onPress={() => this.sendAndReceive()}
             style={[styles.bubble, styles.button]}
           >
             <Text>Refresh</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </View>
     );
   }
