@@ -51,7 +51,7 @@ export default class App extends Component {
         this.setState({ location: location });
 
         if (location != null) {
-          firebase.database().ref('locations/1').set({
+          firebase.database().ref('locations').push().set({
             location: this.state.location,
           });
         }
@@ -66,28 +66,28 @@ export default class App extends Component {
       error => Alert.alert(error.message),
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
     );
+    this.state.markers = [];
     var ref = firebase.database().ref("locations");
     // console.log("hi");
     var that = this;
     ref.on("value", function(snapshot) {
       var people = snapshot.val();
-      // Alert.alert(JSON.stringify(people));
-      // Alert.alert(JSON.stringify(people[1].location));
-      person = JSON.parse(people[1].location)
-      // console.log("hi" + people);
-      // Alert.alert(newUpdate);
-      // console.log("Author: " + newUpdate);
-      that.state.markers = [
-        {
-          key: "1",
-          latlng: {
-            latitude: person.coords.latitude,
-            longitude: person.coords.longitude,
+
+      Object.keys(people).forEach((element) => {
+        person = JSON.parse(people[element].location);
+        that.state.markers.push( 
+          {
+            key: Math.floor(Math.random() * Math.floor(10000000)).toString(10),
+            latlng: {
+              latitude: person.coords.latitude,
+              longitude: person.coords.longitude,
+            },
+            title: Math.floor(Math.random() * Math.floor(10000000)).toString(10),
+            description: "In this area for 1 hour",
           },
-          title: "1",
-          description: "In this area for 1 hour",
-        },
-      ]
+        )
+      });
+      
       that.state.loading = false;
     });
     // this.state.markers = [
@@ -123,6 +123,7 @@ export default class App extends Component {
         >
           {this.state.markers != null ? this.state.markers.map(marker => (
             <Marker
+              key = {marker.key}
               coordinate={marker.latlng}
               title={marker.title}
               description={marker.description}
