@@ -16,6 +16,7 @@ import '@react-native-firebase/functions';
 
 import DeviceInfo from 'react-native-device-info';
 import Geolocation from '@react-native-community/geolocation';
+import MapInput from './MapInput';
 
 const screen = Dimensions.get('window');
 
@@ -46,10 +47,17 @@ export default class App extends Component {
     location: null,
     markers: [],
     loading: false,
+    currSelected: {},
   }
 
-  sendAndReceive() {
-    this.setState({loading: true});
+  sendAndReceive(loc) {
+    this.setState({loading: true, currSelected: {latitude: loc.lat, longitude: loc.lng}});
+    let regionToAnimateTo = {
+      longitudeDelta: 0.005,
+      latitudeDelta: 0.005,
+      ...this.state.currSelected
+    }
+    this.map.animateToRegion(regionToAnimateTo, 1000);
     Geolocation.getCurrentPosition(
       position => {
         const location = JSON.stringify(position);
@@ -59,27 +67,39 @@ export default class App extends Component {
 
         console.log("Device ID: " + DeviceInfo.getUniqueId)
 
-        var locationInfo = {
+        var gpsInfo = {
           id: DeviceInfo.getUniqueId(),
           lat: position.coords.latitude,
           long: position.coords.longitude,
           timestamp: position.timestamp
         }
 
+        var placeInfo = {
+          lat: loc.lat,
+          long: loc.long,
+        }
+
+        var boundaries = {
+          southWest: {
+            longitude: loc.lng - 0.003,
+            latitude: loc.lat - 0.003,
+          },
+          northEast: {
+            longitude: loc.lng + 0.003,
+            latitude: loc.lat + 0.003,
+          }
+        }
+
         var updateLocation = functions.httpsCallable('updateLocation');
 
         var that = this
 
-        this.map.getMapBoundaries().then(function(value) {
-          updateLocation({locationInfo: locationInfo, boundaries: value}).then(result => {
-            // Read result of the Cloud Function.
-            console.log(result)
-            that.setState({loading: false})
-            var numPeopleInArea = result.data;
-            that.setState({numPeopleInRegion: numPeopleInArea})
-          }, error => {
-            console.log(error)
-          });
+        updateLocation({gpsInfo: gpsInfo, boundaries: boundaries, placeInfo: placeInfo}).then(result => {
+          // Read result of the Cloud Function.
+          console.log(result)
+          that.setState({loading: false})
+          var numPeopleInArea = result.data;
+          that.setState({numPeopleInRegion: numPeopleInArea})
         }, error => {
           console.log(error)
         });
@@ -90,59 +110,50 @@ export default class App extends Component {
   ***REMOVED***
 
   componentDidMount() {
-    this.sendAndReceive()
+    // this.sendAndReceive()
   }
 
   render() {
     return (
       <View style={styles.container}>
-        <MapView
-          style={styles.map}
-          ref={ref => {this.map = ref;}}
-          initialRegion={{
-            latitude: 37.600425,
-            longitude: -122.385861,
-            latitudeDelta: LATITUDE_DELTA,
-            longitudeDelta: LONGITUDE_DELTA,
-          }}
-        >
-          {this.state.markers != null ? this.state.markers.map(marker => (
-            <Marker
-              key = {marker.key}
-              coordinate={marker.latlng}
-              title={marker.title}
-              description={marker.description}
-            />
-          )) : null}
-        </MapView>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            onPress={() => this.sendAndReceive()}
-              style={[styles.bubble, styles.button]}>
-            <Text>Refresh</Text>
-          </TouchableOpacity>
-        </View>
-        {this.state.loading ? 
-          <View style={styles.activityIndicator}>
-            <ActivityIndicator size="large" color="#000000" />
-          </View>
-          :
-          <View style={styles.buttonContainer}>
-            <View
-              style={[styles.bubble, styles.button]}
+        <View style={{flex: 1, zIndex: -1}}>
+          <MapView
+            style={styles.map}
+            ref={ref => {this.map = ref;}}
+            showsUserLocation={true}
+            initialRegion={{
+              latitude: 37.600425,
+              longitude: -122.385861,
+              latitudeDelta: LATITUDE_DELTA,
+              longitudeDelta: LONGITUDE_DELTA,
+            }}
             >
-            <Text>{this.state.numPeopleInRegion} people in this region.</Text>
+            { this.state.currSelected['latitude'] ?
+            <Marker
+              coordinate={this.state.currSelected}
+            /> : null
+            }
+          </MapView>
+          {this.state.currSelected['latitude'] ? (this.state.loading ? 
+            <View style={styles.activityIndicator}>
+              <ActivityIndicator size="large" color="#000000" />
             </View>
-          </View>
-        }
-        {/* <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            onPress={() => this.sendAndReceive()}
-            style={[styles.bubble, styles.button]}
-          >
-            <Text>Refresh</Text>
-          </TouchableOpacity>
-        </View> */}
+            :
+            <View style={styles.buttonContainer}>
+              <View
+                style={[styles.bubble, styles.button]}
+              >
+              <Text>{this.state.numPeopleInRegion} people in this region.</Text>
+              </View>
+            </View>
+            ) : null
+          }
+        </View>
+        <View style={styles.mapInput}>
+          <MapInput
+            notifyChange={(loc) => this.sendAndReceive(loc)}
+          />
+        </View>
       </View>
     );
   }
@@ -152,7 +163,6 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
-    alignItems: 'center',
   },
   map: {
     ...StyleSheet.absoluteFillObject,
@@ -168,7 +178,15 @@ const styles = StyleSheet.create({
   activityIndicator: {
     flexDirection: 'row',
     marginVertical: 100,
+    alignSelf: 'center',
     flex: 1,
+  },
+  mapInput: {
+    backgroundColor: 'rgba(0,0,0,0)',
+    position: 'absolute',
+    top: 0,
+    left: 5,
+    right: 5
   },
   button: {
     width: 80,
@@ -178,10 +196,9 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row',
-    marginVertical: 20,
     backgroundColor: 'transparent',
     // marginBottom: 400,
-    marginBottom: 100,
+    marginTop: 700,
   },
   members: {
     flexDirection: 'column',
