@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import MapView, {Marker, AnimatedRegion} from 'react-native-maps';
 
@@ -81,12 +82,12 @@ export default class App extends Component {
 
         var boundaries = {
           southWest: {
-            longitude: loc.lng - 0.003,
-            latitude: loc.lat - 0.003,
+            longitude: loc.lng - 0.001,
+            latitude: loc.lat - 0.001,
           },
           northEast: {
-            longitude: loc.lng + 0.003,
-            latitude: loc.lat + 0.003,
+            longitude: loc.lng + 0.001,
+            latitude: loc.lat + 0.001,
           }
         }
 
@@ -143,17 +144,17 @@ export default class App extends Component {
               <View
                 style={[styles.bubble, styles.button]}
               >
-              <Text>{this.state.numPeopleInRegion} people in this region.</Text>
+              <Text>{this.state.numPeopleInRegion} {this.state.numPeopleInRegion != 1 ? "people" : "person"} here.</Text>
               </View>
             </View>
             ) : null
           }
         </View>
-        <View style={styles.mapInput}>
+        <SafeAreaView style={styles.mapInput}>
           <MapInput
             notifyChange={(loc) => this.sendAndReceive(loc)}
           />
-        </View>
+        </SafeAreaView>
       </View>
     );
   }
