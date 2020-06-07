@@ -45,7 +45,7 @@ public class MainApplication extends Application implements ReactApplication {
     protected String getJSMainModuleName() {
       return "index";
     }
-  ***REMOVED***
+  };
 
   @Override
   public ReactNativeHost getReactNativeHost() {

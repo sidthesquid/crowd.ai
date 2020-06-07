@@ -25,17 +25,6 @@ const ASPECT_RATIO = screen.width / screen.height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-***REMOVED***
-  apiKey: "YOUR_API_KEY_HERE",
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-***REMOVED***
-
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
@@ -108,7 +97,7 @@ export default class App extends Component {
       error => Alert.alert(error.message),
       { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
     );
-  ***REMOVED***
+  };
 
   componentDidMount() {
     // this.sendAndReceive()
